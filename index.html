@@ -121,6 +121,18 @@ ul.tl li b{color:var(--red)}
 @media print{header.top,nav.side,.toolbar,.tabs,.banner,.noprint{display:none!important}main{padding:0}}
 header.top{padding-top:calc(8px + env(safe-area-inset-top))}
 @media(max-width:820px){input,select,textarea{font-size:16px}.btn{min-height:40px}main{padding:14px 12px calc(14px + env(safe-area-inset-bottom))}}
+.overlay.dlg{z-index:300;align-items:center}
+.dlgbox{max-width:440px;text-align:center}
+.dlgbox .dicon{width:48px;height:48px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:1.6em;font-weight:800;color:#fff;background:var(--gold)}
+.dlgbox.ok{border-top-color:var(--ok)}.dlgbox.ok .dicon{background:var(--ok)}
+.dlgbox.err{border-top-color:var(--bad)}.dlgbox.err .dicon{background:var(--bad)}
+.dlgbox h3{margin:.1em 0 .4em}
+.dlgbox .dmsg{color:var(--ink);line-height:1.45;margin:.2em 0 .6em}
+.dlgbox .dmsg p{margin:.3em 0}
+.dlgbox .dinp{margin-top:8px}
+.dlgbox .cred{text-align:left;background:#faf0d8;border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:10px 0;font-size:.9em;color:var(--mut)}
+.dlgbox .cred code{font-size:1.15em;font-weight:700;color:var(--red2);word-break:break-all}
+.actions.center{justify-content:center;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -149,6 +161,27 @@ const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+
 const fmt=d=>{if(!d)return'';const [y,m,g]=String(d).slice(0,10).split('-');return g&&m?`${g}/${m}/${y}`:String(d)};
 let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
+const UI=(()=>{
+  const ICON={ok:'✓',err:'!',info:'i',ask:'?'};
+  function dlg(o){return new Promise(res=>{
+    const ov=document.createElement('div');ov.className='overlay dlg';
+    ov.innerHTML=`<div class="modal dlgbox ${o.type}" role="dialog" aria-modal="true"><div class="dicon">${ICON[o.type]||'i'}</div><h3>${esc(o.title||'')}</h3><div class="dmsg">${o.html||esc(o.msg||'').replace(/\n/g,'<br>')}</div>${o.input?`<input class="dinp" value="${esc(o.input.value||'')}">`:''}<div class="actions center">${o.copy?'<button type="button" class="btn ghost" data-cp>Copia</button>':''}${o.cancel?`<button type="button" class="btn ghost" data-n>${esc(o.cancel)}</button>`:''}<button type="button" class="btn${o.danger?' danger':''}" data-y>${esc(o.ok||'OK')}</button></div></div>`;
+    document.body.appendChild(ov);
+    const inp=$('.dinp',ov),yes=$('[data-y]',ov),no=$('[data-n]',ov),cp=$('[data-cp]',ov);
+    const close=v=>{document.removeEventListener('keydown',kd,true);ov.remove();res(v)};
+    const kd=e=>{if(e.key==='Escape'){e.stopPropagation();if(!o.cancel&&!o.input&&o.type!=='ask'){close(true)}else close(o.input?null:false)}else if(e.key==='Enter'&&e.target.tagName!=='BUTTON'){e.preventDefault();yes.click()}};
+    document.addEventListener('keydown',kd,true);
+    yes.onclick=()=>close(o.input?inp.value:true);if(no)no.onclick=()=>close(o.input?null:false);
+    if(cp)cp.onclick=()=>{try{navigator.clipboard.writeText(o.copy).then(()=>{cp.textContent='Copiato ✓'})}catch(e){cp.textContent='Copia non riuscita'}};
+    (inp||yes).focus();
+  })}
+  const m=(type,title,extra)=>(msg,o)=>dlg(Object.assign({type,title,msg},extra,o)).then(()=>{});
+  return{
+    alert:m('info','Informazione'),ok:m('ok','Operazione completata'),err:m('err','Attenzione'),
+    confirm:(msg,o)=>dlg(Object.assign({type:'ask',title:'Conferma',msg,ok:'Conferma',cancel:'Annulla'},o)),
+    prompt:(msg,value,o)=>dlg(Object.assign({type:'ask',title:'Inserisci un valore',msg,ok:'Conferma',cancel:'Annulla',input:{value}},o))
+  };
+})();
 function download(name,content,type){const b=new Blob([content],{type:type||'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 
 /* =====================================================================
@@ -286,11 +319,11 @@ const S={
    F('statoPratica','Stato pratica','select',{o:OPT.pratica,def:'Aperta',list:1}),F('percorso','Percorso','select',{o:OPT.percorso,def:'Accogliere',list:1}),
    F('bisogni','Bisogni rilevati','textarea'),F('talenti','Competenze / talenti','textarea'),F('consenso','Informativa / consenso acquisiti','check'),
    F('note','Note riservate (visibili solo a Centro Ascolto e coordinamento)','textarea',{roles:['admin','coordinatore','ascolto']})],
-  before(o,old){
+  async before(o,old){
     const same=DB.all('persone').filter(p=>(!old||p.id!==old.id)&&p.cognome.trim().toLowerCase()===o.cognome.trim().toLowerCase()&&p.nome.trim().toLowerCase()===o.nome.trim().toLowerCase());
     const full=same.find(p=>p.dataNascita&&o.dataNascita&&p.dataNascita===o.dataNascita);
     if(full)return'Persona già presente (stesso nome, cognome e data di nascita). Usa la scheda esistente per evitare duplicati.';
-    if(same.length&&!confirm('Esiste già una persona con lo stesso nome e cognome. Vuoi salvare comunque?'))return'Salvataggio annullato.';
+    if(same.length&&!await UI.confirm('Esiste già una persona con lo stesso nome e cognome. Vuoi salvarla comunque?',{title:'Possibile duplicato',ok:'Salva comunque'}))return'Salvataggio annullato.';
   },
   actions:[{l:'Scheda',fn:id=>openScheda(id)}]},
  richieste:{title:'Richieste',sing:'richiesta',sort:'data',
@@ -372,8 +405,9 @@ function scarica(d){
   for(const a of ids)DB.add('movimenti',{articolo:a,data:d.data||today(),tipo:'Uscita',quantita:tot[a],fonte:'Distribuzione',note:`Distribuzione ${d.tipo||''} – ${label('persone',d.persona)}`});
   return null;
 }
-function generaMensile(){
-  const data=prompt('Data della distribuzione mensile (AAAA-MM-GG):',today());if(!data||!/^\d{4}-\d{2}-\d{2}$/.test(data))return;
+async function generaMensile(){
+  const data=await UI.prompt('Inserisci la data della distribuzione (AAAA-MM-GG):',today(),{title:'Distribuzione mensile'});if(data===null)return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){UI.err('Data non valida. Usa il formato AAAA-MM-GG, per esempio 2026-11-15.',{title:'Data non valida'});return}
   const ym=data.slice(0,7);let n=0;
   for(const p of DB.all('persone')){
     if(p.statoPratica==='Chiusa')continue;
@@ -455,8 +489,8 @@ function openRecord(coll,id,prefill,after){
   const sc=S[coll],old=id?DB.get(coll,id):null,fields=visibleFields(sc);
   openForm({title:(old?'Modifica ':'Nuovo/a ')+sc.sing,fields,values:Object.assign({},old||{},prefill||{}),wide:fields.length>6,
     hook:sc.hook,
-    onSave:obj=>{
-      const e=sc.before&&sc.before(obj,old);if(e)return e;
+    onSave:async obj=>{
+      const e=sc.before&&await sc.before(obj,old);if(e)return e;
       let rec;if(old){DB.update(coll,id,obj);rec=DB.get(coll,id)}else rec=DB.add(coll,obj);
       if(sc.after)sc.after(rec,old);if(after)after(rec);refresh();toast('Salvato');
     }});
@@ -541,7 +575,7 @@ function renderSection(host,coll,ro){
   tb.onclick=e=>{
     const t=e.target.closest('button');if(!t)return;const id=t.closest('tr').dataset.id;
     if(t.dataset.e!==undefined)openRecord(coll,id);
-    else if(t.dataset.d!==undefined){if(confirm('Eliminare definitivamente questo elemento?')){DB.remove(coll,id);refresh()}}
+    else if(t.dataset.d!==undefined){UI.confirm('Questa operazione non può essere annullata.',{title:'Eliminare questo elemento?',ok:'Elimina',danger:true}).then(y=>{if(y){DB.remove(coll,id);refresh();toast('Elemento eliminato')}})}
     else if(t.dataset.a!==undefined)sc.actions[+t.dataset.a].fn(id);
   };
 }
@@ -639,12 +673,12 @@ function renderInvDettaglio(host,id){
   $$('.ic',host).forEach(el=>el.oninput=()=>{const tr=el.closest('tr'),r=inv.righe[+tr.dataset.i],th=giacenza(r.articolo);$('.dd',tr).textContent=el.value===''?'':(()=>{const d=Math.round((+el.value-th)*1000)/1000;return d>0?'+'+d:d})()});
   const save=()=>{const rows=inv.righe.map(r=>Object.assign({},r));collect().forEach(c=>{rows[c.i].conta=c.conta;rows[c.i].motivo=c.motivo});DB.update('inventari',id,{righe:rows});return rows};
   $('#bs',host).onclick=()=>{save();toast('Bozza salvata')};
-  $('#ba',host).onclick=()=>{
+  $('#ba',host).onclick=async()=>{
     const rows=save();
-    if(rows.some(r=>r.conta===''))return alert('Inserisci la quantità contata per tutti i beni.');
+    if(rows.some(r=>r.conta===''))return UI.err('Inserisci la quantità contata per tutti i beni.',{title:'Dati mancanti'});
     const diff=rows.map(r=>({r,th:giacenza(r.articolo)})).map(x=>Object.assign(x,{d:Math.round((+x.r.conta-x.th)*1000)/1000})).filter(x=>x.d!==0);
-    if(diff.some(x=>!x.r.motivo))return alert('Inserisci la motivazione per ogni differenza.');
-    if(!confirm(`Verranno registrate ${diff.length} rettifiche di magazzino. Confermi l'approvazione?`))return;
+    if(diff.some(x=>!x.r.motivo))return UI.err('Inserisci la motivazione per ogni differenza.',{title:'Dati mancanti'});
+    if(!await UI.confirm(`Verranno registrate ${diff.length} rettifiche di magazzino e le giacenze saranno aggiornate.`,{title:"Approvare l'inventario?",ok:'Approva'}))return;
     diff.forEach(x=>DB.add('movimenti',{articolo:x.r.articolo,data:today(),tipo:'Rettifica',quantita:x.d,fonte:'Rettifica inventario',note:`Inventario ${fmt(inv.data)}: ${x.r.motivo}`}));
     rows.forEach(r=>{r.teorica=giacenza(r.articolo)});
     DB.update('inventari',id,{righe:rows,stato:'Approvato',approvatoDa:Auth.user.username,approvatoIl:new Date().toISOString()});
@@ -691,16 +725,16 @@ function userForm(id){
         catch(x){return x.code==='auth/email-already-in-use'?'Esiste già un account con questo nome utente (eliminalo prima da Firebase → Authentication).':'Creazione non riuscita ('+x.code+')'}
         finally{deleteApp(sec)}
         DB.add('utenti',{id:cr.user.uid,username:u,nome:o.nome,cognome:o.cognome,ruolo:o.ruolo,attivo:true,mustChange:true});
-        alert(`Utente creato.\n\nNome utente: ${u}\nPassword iniziale: ${o.password}\n\nComunicala all'interessato: dovrà cambiarla al primo accesso.`);
+        await UI.ok('',{title:'Utente creato',html:`<p>Comunica queste credenziali all'interessato: dovrà cambiare la password al primo accesso.</p><div class="cred">Nome utente<br><code>${esc(u)}</code><br><br>Password iniziale<br><code>${esc(o.password)}</code></div>`,copy:`Nome utente: ${u}\nPassword iniziale: ${o.password}`,ok:'Ho annotato le credenziali'});
       }
       refresh();
     }});
 }
-function resetPw(id){
+async function resetPw(id){
   const u=DB.get('utenti',id);
-  if(!u.username.includes('@')){alert(`"${u.username}" non ha un'email: la password non si può reimpostare da qui.\n\nSoluzione: in Firebase → Authentication elimina l'utente ${toEmail(u.username)}, poi in Firestore elimina utenti/${u.id}, e ricrealo da "Nuovo utente" con una nuova password iniziale.`);return}
-  if(!confirm(`Inviare a ${u.username} un'email per reimpostare la password?`))return;
-  sendPasswordResetEmail(fbAuth,u.username).then(()=>{Audit.log('reset password','utenti',id);alert('Email inviata a '+u.username)}).catch(e=>alert('Invio non riuscito ('+e.code+')'));
+  if(!u.username.includes('@')){await UI.alert('',{title:'Reimpostazione non disponibile',html:`<p><b>${esc(u.username)}</b> non ha un'email, quindi la password non si può reimpostare da qui.</p><p style="text-align:left">Soluzione:<br>1. in Firebase → Authentication elimina l'utente <b>${esc(toEmail(u.username))}</b>;<br>2. in Firestore elimina il documento <b>utenti/${esc(u.id)}</b>;<br>3. ricrealo da "Nuovo utente" con una nuova password iniziale.</p>`});return}
+  if(!await UI.confirm(`Verrà inviata un'email a ${u.username} con il link per scegliere una nuova password.`,{title:'Reimpostare la password?',ok:'Invia email'}))return;
+  try{await sendPasswordResetEmail(fbAuth,u.username);Audit.log('reset password','utenti',id);UI.ok(`Email inviata a ${u.username}.`,{title:'Email inviata'})}catch(e){UI.err('Invio non riuscito ('+e.code+')',{title:'Errore'})}
 }
 
 /* =====================================================================
@@ -734,8 +768,8 @@ function renderImpostazioni(host){
    <div class="panel"><h3>Dati di prova</h3><p>Inserisce alcune persone, beni e record di esempio per provare le funzioni. Da non usare con dati reali.</p><button class="btn gold" id="bd">Carica dati di esempio</button></div>
    <div class="panel"><h3>Dove sono salvati i dati</h3><p>I dati sono salvati online su Firebase e condivisi tra tutti i dispositivi autorizzati. Il backup JSON è una copia di sicurezza aggiuntiva.</p></div>`;
   $('#bx',host).onclick=()=>{download(`backup_caritas_${today()}.json`,JSON.stringify(DB.data,null,1),'application/json');Audit.log('backup','impostazioni')};
-  $('#bi',host).onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.utenti||!d.utenti.length)throw 0;if(!confirm('Sostituire TUTTI i dati attuali con il backup?'))return;DB.importAll(d);alert('Backup ripristinato.');refresh()}catch(x){alert('File di backup non valido.')}};r.readAsText(f)};
-  $('#bd',host).onclick=()=>{if(confirm('Aggiungere i dati di esempio?')){seedDemo();toast('Dati di esempio caricati')}};
+  $('#bi',host).onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);if(!d.utenti||!d.utenti.length)throw 0;if(!await UI.confirm('Tutti i dati attuali verranno sostituiti con quelli del backup.',{title:'Ripristinare il backup?',ok:'Ripristina',danger:true}))return;DB.importAll(d);refresh();UI.ok('Il backup è stato ripristinato.')}catch(x){UI.err('Il file selezionato non è un backup valido.',{title:'File non valido'})}};r.readAsText(f)};
+  $('#bd',host).onclick=()=>{UI.confirm('Verranno inseriti nel database alcuni dati finti di prova. Non usarlo con i dati reali.',{title:'Aggiungere i dati di esempio?',ok:'Aggiungi'}).then(y=>{if(y){seedDemo();toast('Dati di esempio caricati')}})};
 }
 
 /* =====================================================================
