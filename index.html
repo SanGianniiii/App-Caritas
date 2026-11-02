@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App Caritas – San Giovanni Apostolo</title>
+<!--
+  APP CARITAS – prototipo funzionante in un solo file.
+  - Mettere nella stessa cartella di questo file l'immagine del logo chiamata logo.png (vanno bene anche logo.jpg, logo.jpeg, logo.webp, logo.svg).
+  - Pubblicazione: GitHub > Settings > Pages > Deploy from branch (main, cartella root).
+  - STATO ATTUALE: i dati sono salvati nel browser (localStorage) di chi usa l'app. Servono per provare tutte le funzioni.
+    Per condividere i dati tra più persone/dispositivi il livello "DB" (vedi sotto) va collegato a un database online (es. Firebase).
+-->
+<style>
+:root{--red:#8f1a1e;--red2:#6c1216;--gold:#b9872d;--gold2:#ecd08a;--cream:#fffaf1;--ink:#2b2220;--mut:#7a6c63;--line:#e8dcc6;--ok:#2e7d32;--warn:#d99a00;--bad:#c62828}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--cream);color:var(--ink);font-size:15px}
+h1,h2,h3{color:var(--red);margin:.2em 0 .5em}
+button,input,select,textarea{font:inherit}
+.btn{background:var(--red);color:#fff;border:0;border-radius:8px;padding:.55em 1em;cursor:pointer;font-weight:600}
+.btn:hover{background:var(--red2)}
+.btn.ghost{background:#fff;color:var(--red);border:1px solid var(--red)}
+.btn.ghost:hover{background:#fbeeee}
+.btn.gold{background:var(--gold)}
+.btn.small{padding:.25em .65em;font-size:.85em;border-radius:6px}
+.btn.danger{background:var(--bad)}
+input,select,textarea{width:100%;padding:.55em .7em;border:1px solid #d9cbb2;border-radius:8px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold2);border-color:var(--gold)}
+textarea{min-height:70px;resize:vertical}
+label{display:block;font-size:.85em;color:var(--mut);margin-bottom:.2em;font-weight:600}
+/* login */
+.loginwrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(180deg,#fff 0%,var(--cream) 60%,#f6e6bf 100%)}
+.card{background:#fff;border-radius:16px;border-top:6px solid var(--red);box-shadow:0 8px 30px rgba(143,26,30,.15);padding:28px;width:100%;max-width:430px}
+.card .logo{display:block;margin:0 auto 10px;max-width:260px;max-height:230px;width:auto;height:auto}
+.card h1{text-align:center;font-size:1.25em}
+.card .sub{text-align:center;color:var(--mut);font-size:.9em;margin-bottom:16px}
+.card .row{margin-bottom:12px}
+.err{color:var(--bad);font-size:.9em;min-height:1.2em;margin:.4em 0}
+.textlogo{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--red);font-weight:800;font-size:1.8em;letter-spacing:.05em;margin-bottom:8px}
+.textlogo small{display:block;color:var(--gold);font-size:.4em;letter-spacing:.12em}
+.cross{width:34px;height:34px;position:relative;display:inline-block}
+.cross:before,.cross:after{content:"";position:absolute;background:var(--red);border-radius:2px}
+.cross:before{left:12px;top:0;width:10px;height:34px}.cross:after{top:12px;left:0;height:10px;width:34px}
+/* shell */
+header.top{background:linear-gradient(90deg,var(--red2),var(--red));color:#fff;display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:4px solid var(--gold);position:sticky;top:0;z-index:20}
+header.top .hlogo{height:44px;background:#fff;border-radius:8px;padding:2px 6px}
+header.top .tl{font-weight:700;line-height:1.1}
+header.top .tl small{display:block;font-weight:400;opacity:.85;font-size:.75em}
+header.top .sp{flex:1}
+header.top .who{font-size:.85em;text-align:right;line-height:1.2}
+header.top .btn{background:#fff;color:var(--red)}
+#burger{display:none;background:transparent;color:#fff;font-size:1.6em;padding:0 .3em}
+.layout{display:flex;min-height:calc(100% - 62px)}
+nav.side{width:250px;background:#fff;border-right:1px solid var(--line);padding:10px 0;flex-shrink:0}
+nav.side a{display:block;padding:.6em 1.1em;color:var(--ink);text-decoration:none;border-left:4px solid transparent;cursor:pointer}
+nav.side a:hover{background:#fbf3e2}
+nav.side a.on{border-left-color:var(--red);background:#fbeeee;color:var(--red);font-weight:700}
+main{flex:1;padding:18px 22px;min-width:0}
+.banner{background:#fff3d6;border:1px solid var(--gold2);color:#6b4d0b;border-radius:8px;padding:.5em .8em;font-size:.85em;margin-bottom:14px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.toolbar .search{max-width:280px}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:12px;flex-wrap:wrap}
+.tabs button{background:none;border:0;padding:.5em 1em;cursor:pointer;color:var(--mut);font-weight:600;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tabs button.on{color:var(--red);border-bottom-color:var(--red)}
+.tablewrap{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%}
+th{background:#faf0d8;color:var(--red2);text-align:left;font-size:.82em;text-transform:uppercase;letter-spacing:.03em}
+th,td{padding:.55em .75em;border-bottom:1px solid #f1e8d6;vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.acts{white-space:nowrap;text-align:right}
+td.acts .btn{margin-left:3px}
+.empty{padding:22px;text-align:center;color:var(--mut)}
+.badge{display:inline-block;padding:.1em .6em;border-radius:999px;font-size:.8em;font-weight:700;background:#f3e3bd;color:#7a5410}
+.badge.ok{background:#dff0e0;color:var(--ok)}.badge.bad{background:#fbdede;color:var(--bad)}.badge.warn{background:#fff0c4;color:#8a6200}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:#fff;border:1px solid var(--line);border-left:6px solid var(--gold);border-radius:10px;padding:12px 14px}
+.kpi.ok{border-left-color:var(--ok)}.kpi.warn{border-left-color:var(--warn)}.kpi.bad{border-left-color:var(--bad)}
+.kpi .v{font-size:1.9em;font-weight:800;color:var(--red)}
+.kpi .l{font-weight:600}.kpi .s{font-size:.8em;color:var(--mut)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:.9em}
+.bar .n{width:130px;flex-shrink:0}.bar .t{flex:1;background:#f4ead2;border-radius:6px;height:16px;overflow:hidden}
+.bar .t i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--red))}
+.bar .c{width:36px;text-align:right;font-weight:700}
+.step{display:flex;gap:4px;margin:8px 0 14px;flex-wrap:wrap}
+.step span{padding:.25em .7em;border-radius:999px;background:#f3ead4;color:var(--mut);font-size:.82em;font-weight:600}
+.step span.on{background:var(--red);color:#fff}
+ul.tl{list-style:none;padding:0;margin:0}
+ul.tl li{border-left:3px solid var(--gold);padding:2px 0 8px 12px;margin-left:6px}
+ul.tl li b{color:var(--red)}
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(40,12,12,.5);display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:50}
+.modal{background:#fff;border-radius:14px;border-top:6px solid var(--red);padding:20px;width:100%;max-width:560px}
+.modal.wide{max-width:820px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid .full{grid-column:1/-1}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.chk{display:flex;align-items:center;gap:8px;font-size:.95em;color:var(--ink);font-weight:500;margin-top:1.4em}
+.chk input{width:auto}
+.mchk{display:flex;flex-wrap:wrap;gap:4px 14px;max-height:150px;overflow:auto;border:1px solid #d9cbb2;border-radius:8px;padding:8px}
+.mchk label{display:flex;gap:5px;align-items:center;color:var(--ink);font-weight:500;margin:0}.mchk input{width:auto}
+.irow{display:flex;gap:6px;margin-bottom:6px}.irow select{flex:3}.irow input{flex:1}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.6em 1.2em;border-radius:8px;z-index:99;opacity:0;transition:.25s;pointer-events:none}
+#toast.show{opacity:1}
+@media(max-width:820px){
+ #burger{display:block}
+ nav.side{position:fixed;top:62px;bottom:0;left:-270px;z-index:30;transition:.25s;overflow:auto;box-shadow:4px 0 16px rgba(0,0,0,.2)}
+ nav.side.open{left:0}
+ main{padding:12px}.grid{grid-template-columns:1fr}
+ header.top .who span{display:none}
+}
+@media print{header.top,nav.side,.toolbar,.tabs,.banner,.noprint{display:none!important}main{padding:0}}
+</style>
+</head>
+<body>
+<noscript>Per usare l'app Caritas è necessario attivare JavaScript.</noscript>
+<div id="app"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   UTILITÀ
+   ===================================================================== */
+const $=(s,e=document)=>e.querySelector(s);
+const $$=(s,e=document)=>[...e.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const fmt=d=>{if(!d)return'';const [y,m,g]=String(d).slice(0,10).split('-');return g&&m?`${g}/${m}/${y}`:String(d)};
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
+function download(name,content,type){const b=new Blob([content],{type:type||'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+
+/* =====================================================================
+   LIVELLO DATI (DB)
+   Oggi: localStorage del browser. Per passare a Firebase/altro database
+   basta riscrivere load(), save() e i metodi sotto mantenendo le stesse firme.
+   ===================================================================== */
+const DB={
+  key:'caritas_app_v1',data:{},
+  load(){try{this.data=JSON.parse(localStorage.getItem(this.key))||{}}catch(e){this.data={}}},
+  save(){try{localStorage.setItem(this.key,JSON.stringify(this.data))}catch(e){toast('Attenzione: impossibile salvare i dati in questo browser')}},
+  all(c){return this.data[c]||(this.data[c]=[])},
+  get(c,id){return this.all(c).find(x=>x.id===id)},
+  add(c,o){o.id=uid();o.creatoIl=new Date().toISOString();o.creatoDa=Auth.user?Auth.user.username:'sistema';this.all(c).push(o);this.save();Audit.log('crea',c,o.id);return o},
+  update(c,id,p){const o=this.get(c,id);if(!o)return null;Object.assign(o,p,{modificatoIl:new Date().toISOString(),modificatoDa:Auth.user?Auth.user.username:'sistema'});this.save();Audit.log('modifica',c,id);return o},
+  remove(c,id){const a=this.all(c),i=a.findIndex(x=>x.id===id);if(i>=0){a.splice(i,1);this.save();Audit.log('elimina',c,id)}}
+};
+const Audit={
+  log(azione,coll,rec,dett){const a=DB.all('audit');a.push({id:uid(),ts:new Date().toISOString(),utente:Auth.user?Auth.user.username:'-',azione,coll:coll||'',rec:rec||'',dett:dett||''});if(a.length>3000)a.splice(0,a.length-3000);DB.save()}
+};
+
+/* =====================================================================
+   AUTENTICAZIONE (nome utente + password creati dall'admin)
+   ===================================================================== */
+async function hashPw(pw,salt){
+  const s=salt+':'+pw;
+  if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+  let h=7;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return'w'+h; /* ripiego debole: solo se il browser non supporta crypto */
+}
+const Auth={
+  user:null,fails:0,lockUntil:0,
+  async seed(){
+    if(!DB.all('utenti').length){
+      const salt=uid();
+      DB.data.utenti=[{id:uid(),username:'admin',nome:'Amministratore',cognome:'',ruolo:'admin',attivo:true,salt,hash:await hashPw('admin',salt),mustChange:true,creatoIl:new Date().toISOString()}];
+      DB.save();
+    }
+  },
+  async login(u,p){
+    if(Date.now()<this.lockUntil)return'Troppi tentativi. Riprova tra qualche secondo.';
+    const r=DB.all('utenti').find(x=>x.username===u.trim().toLowerCase());
+    if(!r||!r.attivo||await hashPw(p,r.salt)!==r.hash){
+      this.fails++;if(this.fails>=5){this.lockUntil=Date.now()+30000;this.fails=0}
+      return'Nome utente o password non corretti.';
+    }
+    this.fails=0;this.user=r;try{sessionStorage.setItem('caritas_uid',r.id)}catch(e){}
+    Audit.log('login','utenti',r.id);return null;
+  },
+  restore(){try{const id=sessionStorage.getItem('caritas_uid');const r=id&&DB.get('utenti',id);if(r&&r.attivo)this.user=r}catch(e){}},
+  logout(){Audit.log('logout','utenti',this.user&&this.user.id);this.user=null;try{sessionStorage.removeItem('caritas_uid')}catch(e){}}
+};
+
+/* =====================================================================
+   RUOLI E MODULI (come da relazione)
+   ===================================================================== */
+const ALLMODS=['dashboard','persone','richieste','agenda','colloqui','comunicazioni','magazzino','distribuzioni','inventario','volontari','formazione','donatori','eventi','rete','equipe','report','audit','utenti','impostazioni'];
+const ROLES={
+  admin:{l:'Amministratore',mods:ALLMODS},
+  parroco:{l:'Parroco / Supervisione',mods:['dashboard','equipe','report','audit']},
+  coordinatore:{l:'Coordinatore Caritas',mods:['dashboard','persone','richieste','agenda','colloqui','comunicazioni','magazzino','distribuzioni','inventario','volontari','formazione','donatori','eventi','rete','equipe','report','audit']},
+  frontoffice:{l:'Front Office',mods:['dashboard','persone','richieste','agenda','comunicazioni']},
+  ascolto:{l:'Operatore Centro Ascolto',mods:['dashboard','persone','richieste','agenda','colloqui','rete','comunicazioni']},
+  magazzino:{l:'Responsabile magazzino',mods:['dashboard','magazzino','distribuzioni','inventario']},
+  respvol:{l:'Responsabile volontari',mods:['dashboard','volontari','formazione']},
+  respdon:{l:'Responsabile donatori/eventi',mods:['dashboard','donatori','eventi']},
+  volontario:{l:'Volontario',mods:['dashboard','miei_turni']}
+};
+const MODS=[
+  {id:'dashboard',l:'Cruscotto'},
+  {id:'persone',l:'Persone e nuclei',secs:['persone']},
+  {id:'richieste',l:'Front Office – Richieste',secs:['richieste']},
+  {id:'agenda',l:'Agenda appuntamenti',secs:['appuntamenti']},
+  {id:'colloqui',l:'Centro Ascolto',secs:['colloqui']},
+  {id:'comunicazioni',l:'Comunicazioni',secs:['comunicazioni']},
+  {id:'magazzino',l:'Magazzino',secs:['articoli','movimenti']},
+  {id:'distribuzioni',l:'Distribuzioni',secs:['distribuzioni']},
+  {id:'inventario',l:'Inventario semestrale'},
+  {id:'volontari',l:'Volontari e turni',secs:['volontari','turni']},
+  {id:'formazione',l:'Formazione',secs:['formazione']},
+  {id:'donatori',l:'Donatori e donazioni',secs:['donatori','donazioni']},
+  {id:'eventi',l:'Eventi e raccolte',secs:['eventi']},
+  {id:'rete',l:'Rete territoriale',secs:['enti','invii']},
+  {id:'equipe',l:'Equipe e decisioni',secs:['riunioni','azioni']},
+  {id:'report',l:'Report'},
+  {id:'miei_turni',l:'I miei turni',secs:['turni'],ro:true},
+  {id:'utenti',l:'Utenti e accessi'},
+  {id:'audit',l:'Registro attività'},
+  {id:'impostazioni',l:'Impostazioni e backup'}
+];
+const role=()=>Auth.user?Auth.user.ruolo:'';
+const can=m=>Auth.user&&ROLES[role()]&&ROLES[role()].mods.includes(m);
+const isStaffAdmin=()=>['admin','coordinatore'].includes(role());
+
+/* =====================================================================
+   SCHEMI DEI DATI
+   ===================================================================== */
+const F=(k,l,t,x)=>Object.assign({k,l,t:t||'text'},x||{});
+const OPT={
+  percorso:['Accogliere','Ascoltare','Conoscere','Accompagnare','Valorizzare','Coinvolgere'],
+  pratica:['Aperta','In corso','Chiusa'],
+  canale:['Di persona','Telefono','Digitale'],
+  prio:['Ordinaria','Urgente'],
+  reqstato:['Aperta','Presa in carico','Appuntamento fissato','Chiusa'],
+  apptipo:['Ordinario','Urgente'],
+  appstato:['Programmato','Confermato','Effettuato','Annullato','Mancata presentazione'],
+  esito:['Intervento','Orientamento','Invio alla rete','Follow-up','Chiusura'],
+  canaleout:['SMS','WhatsApp','Email','Telefono','Di persona'],
+  tipocom:['Conferma appuntamento','Promemoria','Distribuzione','Variazione orario','Evento','Info di servizio'],
+  cat:['Alimentare','Non alimentare'],
+  unita:['kg','pz','lt','confezioni'],
+  movtipo:['Entrata','Uscita','Rettifica'],
+  fonte:['Banco Alimentare','Colletta','Donazione','Acquisto','Distribuzione','Rettifica inventario','Altro'],
+  disttipo:['Ordinaria','Straordinaria'],
+  distesito:['Pianificata','Consegnata','Mancato ritiro'],
+  volstato:['Attivo','Sospeso','Cessato'],
+  fascia:['Mattina','Pomeriggio','Sera'],
+  attivita:['Centro Ascolto','Front Office','Magazzino','Distribuzione','Evento','Altro'],
+  turnostato:['Programmato','Svolto','Assente'],
+  donat:['Privato','Azienda','Ente / Associazione'],
+  dontipo:['Economica','Materiale','Alimentare','Professionale'],
+  area:['Sanitaria','Lavoro','Casa','Legale','Scuola','Sociale','Altro'],
+  invstato:['Segnalata','Presa in carico','Concluso','Senza esito'],
+  dir:['Inviata','Ricevuta'],
+  azstato:['Aperta','In corso','Completata']
+};
+const TPL={
+  'Conferma appuntamento':'Gentile {nome}, confermiamo il suo appuntamento presso la Caritas. Per eventuali variazioni ci contatti.',
+  'Promemoria':'Gentile {nome}, le ricordiamo il suo appuntamento presso la Caritas.',
+  'Distribuzione':'Gentile {nome}, è disponibile la distribuzione del mese presso la Caritas. Vi aspettiamo.',
+  'Variazione orario':'Gentile {nome}, l\'orario previsto è cambiato. La contatteremo con le nuove indicazioni.',
+  'Evento':'Gentile {nome}, la invitiamo al prossimo evento organizzato dalla Caritas.',
+  'Info di servizio':'Gentile {nome}, una comunicazione di servizio dalla Caritas.'
+};
+const OPERATORI_ROLES=['admin','coordinatore','frontoffice','ascolto'];
+
+const S={
+ persone:{title:'Persone e nuclei',sing:'persona',sort:'cognome',asc:1,
+  fields:[F('cognome','Cognome','text',{req:1,list:1}),F('nome','Nome','text',{req:1,list:1}),F('dataNascita','Data di nascita','date',{list:1}),F('telefono','Telefono'),F('nucleo','Componenti del nucleo','number',{def:1}),
+   F('statoPratica','Stato pratica','select',{o:OPT.pratica,def:'Aperta',list:1}),F('percorso','Percorso','select',{o:OPT.percorso,def:'Accogliere',list:1}),
+   F('bisogni','Bisogni rilevati','textarea'),F('talenti','Competenze / talenti','textarea'),F('consenso','Informativa / consenso acquisiti','check'),
+   F('note','Note riservate (visibili solo a Centro Ascolto e coordinamento)','textarea',{roles:['admin','coordinatore','ascolto']})],
+  before(o,old){
+    const same=DB.all('persone').filter(p=>(!old||p.id!==old.id)&&p.cognome.trim().toLowerCase()===o.cognome.trim().toLowerCase()&&p.nome.trim().toLowerCase()===o.nome.trim().toLowerCase());
+    const full=same.find(p=>p.dataNascita&&o.dataNascita&&p.dataNascita===o.dataNascita);
+    if(full)return'Persona già presente (stesso nome, cognome e data di nascita). Usa la scheda esistente per evitare duplicati.';
+    if(same.length&&!confirm('Esiste già una persona con lo stesso nome e cognome. Vuoi salvare comunque?'))return'Salvataggio annullato.';
+  },
+  actions:[{l:'Scheda',fn:id=>openScheda(id)}]},
+ richieste:{title:'Richieste',sing:'richiesta',sort:'data',
+  fields:[F('persona','Persona','ref',{ref:'persone',req:1,list:1}),F('data','Data','date',{def:'__today',req:1,list:1}),F('canale','Canale','select',{o:OPT.canale,list:1}),F('motivo','Motivo della richiesta','text',{req:1,list:1}),
+   F('priorita','Priorità','select',{o:OPT.prio,def:'Ordinaria',list:1}),F('responsabile','Responsabile presa in carico','ref',{ref:'utenti',def:'__me'}),F('stato','Stato','select',{o:OPT.reqstato,def:'Aperta',list:1}),F('esito','Esito','text'),F('prossimo','Prossimo passo','text')],
+  actions:[{l:'Fissa appuntamento',show:r=>r.stato!=='Chiusa'&&can('agenda'),fn:id=>{const r=DB.get('richieste',id);openRecord('appuntamenti',null,{persona:r.persona,data:today(),tipo:r.priorita==='Urgente'?'Urgente':'Ordinario'},()=>{DB.update('richieste',id,{stato:'Appuntamento fissato'});refresh()})}}]},
+ appuntamenti:{title:'Appuntamenti',sing:'appuntamento',sort:'data',
+  fields:[F('persona','Persona','ref',{ref:'persone',req:1,list:1}),F('data','Data','date',{req:1,list:1,def:'__today'}),F('ora','Ora','time',{list:1}),F('operatore','Operatore Centro Ascolto','ref',{ref:'utenti',list:1}),F('tipo','Tipo','select',{o:OPT.apptipo,def:'Ordinario',list:1}),F('stato','Stato','select',{o:OPT.appstato,def:'Programmato',list:1})],
+  actions:[{l:'Effettuato',show:r=>['Programmato','Confermato'].includes(r.stato),fn:id=>{DB.update('appuntamenti',id,{stato:'Effettuato'});refresh()}}]},
+ colloqui:{title:'Colloqui (scheda colloquio)',sing:'colloquio',sort:'data',
+  fields:[F('persona','Persona','ref',{ref:'persone',req:1,list:1}),F('data','Data','date',{def:'__today',req:1,list:1}),F('operatore','Operatore','ref',{ref:'utenti',def:'__me',list:1}),
+   F('bisogni','Bisogni emersi','textarea'),F('capacita','Capacità e talenti','textarea'),F('valutazione','Valutazione','textarea'),
+   F('esito','Esito','select',{o:OPT.esito,req:1,list:1}),F('intervento','Intervento / orientamento deciso','text'),F('prossimo','Prossimo passo','text'),F('dataFollowUp','Data follow-up','date',{list:1}),F('followUpFatto','Follow-up svolto','check')],
+  after(r){const p=DB.get('persone',r.persona);if(!p)return;const patch={};if(r.esito==='Chiusura')patch.statoPratica='Chiusa';else if(p.statoPratica==='Aperta')patch.statoPratica='In corso';if(p.percorso==='Accogliere')patch.percorso='Ascoltare';if(Object.keys(patch).length)DB.update('persone',p.id,patch)}},
+ comunicazioni:{title:'Comunicazioni inviate',sing:'comunicazione',sort:'data',
+  fields:[F('data','Data','date',{def:'__today',req:1,list:1}),F('persona','Destinatario','ref',{ref:'persone',list:1}),F('canale','Canale','select',{o:OPT.canaleout,list:1}),F('tipo','Tipo (compila il testo)','select',{o:OPT.tipocom,list:1,req:1}),F('testo','Testo','textarea')],
+  hook(form){const t=$('#f_tipo',form),x=$('#f_testo',form),p=$('#f_persona',form);t.addEventListener('change',()=>{if(!x.value.trim()&&TPL[t.value]){const pr=DB.get('persone',p.value);x.value=TPL[t.value].replace('{nome}',pr?pr.nome:'')}})},
+  note:'Registro delle comunicazioni. L\'invio automatico via SMS/WhatsApp/email richiede un servizio esterno (da definire).'},
+ articoli:{title:'Catalogo e giacenze',sing:'articolo',sort:'nome',asc:1,
+  fields:[F('nome','Bene','text',{req:1,list:1}),F('categoria','Categoria','select',{o:OPT.cat,req:1,list:1}),F('unita','Unità di misura','select',{o:OPT.unita,def:'pz',list:1}),F('ubicazione','Ubicazione','text',{list:1}),F('soglia','Soglia minima (alert)','number',{def:0})],
+  extra:[{l:'Giacenza',h:r=>`<b>${giacenza(r.id)}</b> ${esc(r.unita||'')}`},{l:'Stato',h:r=>{const g=giacenza(r.id);return g<=0?'<span class="badge bad">Esaurito</span>':(r.soglia&&g<=+r.soglia?'<span class="badge warn">Sottoscorta</span>':'<span class="badge ok">OK</span>')}}]},
+ movimenti:{title:'Movimenti di magazzino',sing:'movimento',sort:'data',noEdit:1,noDelete:1,
+  fields:[F('articolo','Bene','ref',{ref:'articoli',req:1,list:1}),F('data','Data','date',{def:'__today',req:1,list:1}),F('tipo','Tipo','select',{o:OPT.movtipo,req:1,list:1}),F('quantita','Quantità (per le rettifiche anche negativa)','number',{req:1,list:1}),F('fonte','Fonte / causale','select',{o:OPT.fonte,list:1}),F('lotto','Lotto','text'),F('scadenza','Scadenza','date',{list:1}),F('note','Motivazione (obbligatoria per le rettifiche)','text',{list:1})],
+  before(o){const q=+o.quantita;if(o.tipo!=='Rettifica'&&!(q>0))return'La quantità deve essere maggiore di zero.';if(o.tipo==='Rettifica'&&(!q||!String(o.note||'').trim()))return'Per una rettifica servono quantità (diversa da 0) e motivazione.';if(o.tipo==='Uscita'&&q>giacenza(o.articolo))return`Giacenza insufficiente: disponibili ${giacenza(o.articolo)}.`},
+  note:'I movimenti non si modificano né si eliminano: per correggere si registra una rettifica motivata.'},
+ distribuzioni:{title:'Distribuzioni',sing:'distribuzione',sort:'data',
+  fields:[F('data','Data','date',{def:'__today',req:1,list:1}),F('tipo','Tipo','select',{o:OPT.disttipo,def:'Ordinaria',req:1,list:1}),F('persona','Persona / nucleo','ref',{ref:'persone',req:1,list:1}),F('esito','Esito','select',{o:OPT.distesito,def:'Pianificata',list:1}),
+   F('motivazione','Motivazione (obbligatoria se straordinaria)','text'),F('items','Beni del pacco','items',{list:1}),F('operatore','Operatore','ref',{ref:'utenti',def:'__me'})],
+  before(o,old){if(old&&old.scaricato)return'Distribuzione già consegnata: non modificabile.';if(o.tipo==='Straordinaria'&&!String(o.motivazione||'').trim())return'La distribuzione straordinaria richiede una motivazione.';if(o.esito==='Consegnata'){const e=scarica(o);if(e)return e;o.scaricato=true}},
+  actions:[{l:'Segna consegnata',show:r=>r.esito==='Pianificata',fn:id=>{const d=DB.get('distribuzioni',id);const c=Object.assign({},d,{esito:'Consegnata'});const e=scarica(c);if(e){toast(e);return}DB.update('distribuzioni',id,{esito:'Consegnata',scaricato:true});refresh();toast('Consegna registrata: giacenze aggiornate')}},
+           {l:'Mancato ritiro',show:r=>r.esito==='Pianificata',fn:id=>{DB.update('distribuzioni',id,{esito:'Mancato ritiro'});refresh()}}],
+  noDeleteIf:r=>r.scaricato,noEditIf:r=>r.scaricato,
+  buttons:[{l:'Genera distribuzione mensile ordinaria',fn:()=>generaMensile()}]},
+ volontari:{title:'Anagrafica volontari e operatori',sing:'volontario',sort:'cognome',asc:1,
+  fields:[F('cognome','Cognome','text',{req:1,list:1}),F('nome','Nome','text',{req:1,list:1}),F('telefono','Telefono','text',{list:1}),F('stato','Stato','select',{o:OPT.volstato,def:'Attivo',list:1}),F('dataInizio','Inizio servizio','date',{list:1}),
+   F('competenze','Competenze','textarea'),F('disponibilita','Disponibilità','textarea'),F('utente','Account di accesso collegato','ref',{ref:'utenti'})]},
+ turni:{title:'Turni',sing:'turno',sort:'data',
+  fields:[F('volontario','Volontario','ref',{ref:'volontari',req:1,list:1}),F('data','Data','date',{def:'__today',req:1,list:1}),F('fascia','Fascia','select',{o:OPT.fascia,list:1}),F('attivita','Attività','select',{o:OPT.attivita,list:1}),F('stato','Stato','select',{o:OPT.turnostato,def:'Programmato',list:1}),F('ore','Ore donate','number',{list:1})]},
+ formazione:{title:'Formazione',sing:'sessione formativa',sort:'data',
+  fields:[F('titolo','Titolo','text',{req:1,list:1}),F('data','Data','date',{req:1,list:1}),F('argomento','Argomento (es. privacy, procedure)','text',{list:1}),F('formatore','Formatore','text',{list:1}),F('partecipanti','Partecipanti (presenze)','multiref',{ref:'volontari',list:1}),F('valutazione','Valutazione','text'),F('scadenza','Scadenza / rinnovo','date',{list:1})]},
+ donatori:{title:'Donatori e sostenitori',sing:'donatore',sort:'nome',asc:1,
+  fields:[F('nome','Nome / ragione sociale','text',{req:1,list:1}),F('tipologia','Tipologia','select',{o:OPT.donat,list:1}),F('contatto','Contatto','text',{list:1}),F('ricorrente','Sostenitore ricorrente (Rete Amici)','check',{list:1}),F('note','Note','textarea')]},
+ donazioni:{title:'Donazioni',sing:'donazione',sort:'data',
+  fields:[F('donatore','Donatore','ref',{ref:'donatori',req:1,list:1}),F('data','Data','date',{def:'__today',req:1,list:1}),F('tipo','Tipo','select',{o:OPT.dontipo,req:1,list:1}),F('valore','Valore (€) o quantità','number',{list:1}),F('descrizione','Descrizione','text',{list:1}),F('campagna','Campagna / evento','text',{list:1}),F('ringraziato','Ringraziato','check',{list:1})]},
+ eventi:{title:'Eventi e raccolte',sing:'evento',sort:'data',
+  fields:[F('titolo','Titolo','text',{req:1,list:1}),F('data','Data','date',{req:1,list:1}),F('obiettivo','Obiettivo','text'),F('partner','Partner','text'),F('partecipanti','Partecipanti (numero)','number',{list:1}),F('beni','Beni raccolti','text'),F('entrate','Entrate (€)','number',{list:1}),F('costi','Costi (€)','number',{list:1}),F('nuovi','Nuovi contatti / donatori','number'),F('risultato','Risultato e valutazione','textarea')]},
+ enti:{title:'Enti e servizi della rete',sing:'ente',sort:'nome',asc:1,
+  fields:[F('nome','Ente / servizio','text',{req:1,list:1}),F('area','Area di intervento','select',{o:OPT.area,list:1}),F('referente','Referente','text',{list:1}),F('contatto','Contatto','text',{list:1})]},
+ invii:{title:'Invii e segnalazioni',sing:'segnalazione',sort:'data',
+  fields:[F('persona','Persona','ref',{ref:'persone',req:1,list:1}),F('ente','Ente','ref',{ref:'enti',req:1,list:1}),F('data','Data','date',{def:'__today',req:1,list:1}),F('direzione','Direzione','select',{o:OPT.dir,def:'Inviata',list:1}),F('stato','Stato','select',{o:OPT.invstato,def:'Segnalata',list:1}),
+   F('consenso','Consenso / base applicabile verificata','check',{req:0}),F('info','Informazioni condivise','text'),F('esito','Esito','text',{list:1})],
+  before(o){if(o.direzione==='Inviata'&&!o.consenso)return'Prima di segnalare a un ente esterno verifica il consenso o la base applicabile (spunta la casella).'}},
+ riunioni:{title:'Riunioni Equipe',sing:'riunione',sort:'data',
+  fields:[F('data','Data','date',{req:1,def:'__today',list:1}),F('odg','Ordine del giorno','textarea',{list:1}),F('partecipanti','Partecipanti','text',{list:1}),F('verbale','Sintesi / criticità emerse','textarea')]},
+ azioni:{title:'Decisioni e azioni',sing:'azione',sort:'scadenza',asc:1,
+  fields:[F('riunione','Riunione','ref',{ref:'riunioni',list:1}),F('decisione','Decisione / azione','text',{req:1,list:1}),F('responsabile','Responsabile','text',{list:1}),F('scadenza','Scadenza','date',{list:1}),F('stato','Stato','select',{o:OPT.azstato,def:'Aperta',list:1}),F('criticita','Criticità','text')]}
+};
+const SEC_LABEL={persone:'Persone',richieste:'Richieste',appuntamenti:'Appuntamenti',colloqui:'Colloqui',comunicazioni:'Comunicazioni',articoli:'Catalogo e giacenze',movimenti:'Movimenti',distribuzioni:'Distribuzioni',volontari:'Volontari',turni:'Turni',formazione:'Formazione',donatori:'Donatori',donazioni:'Donazioni',eventi:'Eventi',enti:'Enti',invii:'Invii e segnalazioni',riunioni:'Riunioni',azioni:'Decisioni e azioni'};
+
+/* =====================================================================
+   LOGICA DI DOMINIO
+   ===================================================================== */
+function giacenza(id){let g=0;for(const m of DB.all('movimenti')){if(m.articolo!==id)continue;const q=+m.quantita||0;g+=m.tipo==='Uscita'?-q:q}return Math.round(g*1000)/1000}
+function label(c,id){
+  if(!id)return'';const r=DB.get(c,id);if(!r)return'(eliminato)';
+  switch(c){
+    case'persone':case'volontari':return`${r.cognome} ${r.nome}`;
+    case'utenti':return`${(r.cognome+' '+r.nome).trim()||r.username} (${r.username})`;
+    case'articoli':case'donatori':case'enti':return r.nome;
+    case'eventi':return r.titolo;
+    case'riunioni':return fmt(r.data)+' – '+String(r.odg||'').slice(0,30);
+    default:return id;
+  }
+}
+function scarica(d){
+  const tot={};for(const i of (d.items||[])){if(i.articolo&&+i.qta>0)tot[i.articolo]=(tot[i.articolo]||0)+ +i.qta}
+  const ids=Object.keys(tot);if(!ids.length)return'Aggiungi almeno un bene prima di registrare la consegna.';
+  for(const a of ids){if(giacenza(a)<tot[a])return`Giacenza insufficiente per "${label('articoli',a)}" (disponibili ${giacenza(a)}).`}
+  for(const a of ids)DB.add('movimenti',{articolo:a,data:d.data||today(),tipo:'Uscita',quantita:tot[a],fonte:'Distribuzione',note:`Distribuzione ${d.tipo||''} – ${label('persone',d.persona)}`});
+  return null;
+}
+function generaMensile(){
+  const data=prompt('Data della distribuzione mensile (AAAA-MM-GG):',today());if(!data||!/^\d{4}-\d{2}-\d{2}$/.test(data))return;
+  const ym=data.slice(0,7);let n=0;
+  for(const p of DB.all('persone')){
+    if(p.statoPratica==='Chiusa')continue;
+    if(DB.all('distribuzioni').some(d=>d.persona===p.id&&d.tipo==='Ordinaria'&&String(d.data).slice(0,7)===ym))continue;
+    DB.add('distribuzioni',{data,tipo:'Ordinaria',persona:p.id,esito:'Pianificata',items:[],operatore:Auth.user.id});n++;
+  }
+  toast(n?`Create ${n} distribuzioni pianificate (persone con pratica non chiusa)`:'Nessuna nuova distribuzione da creare');refresh();
+}
+function magAlerts(){
+  const t=today(),lim=addDays(t,30);
+  const sotto=DB.all('articoli').filter(a=>+a.soglia>0&&giacenza(a.id)<=+a.soglia);
+  const scad=DB.all('movimenti').filter(m=>m.tipo==='Entrata'&&m.scadenza&&m.scadenza<=lim&&giacenza(m.articolo)>0);
+  return{sotto,scad};
+}
+const tone=v=>{v=String(v||'');if(/Urgente|Mancat|Annullat|Assente|Esaurit|Cessato|Senza esito/.test(v))return'bad';if(/Chiusa|Completata|Effettuato|Consegnata|Svolto|Concluso|Attivo/.test(v))return'ok';if(/Aperta|Programmato|Pianificata|Segnalata/.test(v))return'warn';return''};
+
+/* =====================================================================
+   FORM GENERICI
+   ===================================================================== */
+function visibleFields(sc){return sc.fields.filter(f=>!f.roles||f.roles.includes(role()))}
+function refOptions(c){
+  let rows=DB.all(c);if(c==='utenti')rows=rows.filter(u=>u.attivo);
+  return rows.map(r=>({id:r.id,l:label(c,r.id)})).sort((a,b)=>a.l.localeCompare(b.l,'it'));
+}
+function fieldHTML(f,v){
+  const id='f_'+f.k;let val=v;
+  if(val===undefined||val===null){val=f.def==='__today'?today():(f.def==='__me'?(Auth.user?Auth.user.id:''):(f.def!==undefined?f.def:''))}
+  const req=f.req?' required':'';
+  if(f.t==='check')return`<div class="chk"><input type="checkbox" id="${id}"${v?' checked':''}><label for="${id}" style="margin:0;color:inherit;font-weight:500">${esc(f.l)}</label></div>`;
+  let inp='';
+  if(f.t==='select')inp=`<select id="${id}"${req}><option value="">—</option>${f.o.map(o=>`<option${val===o?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  else if(f.t==='ref')inp=`<select id="${id}"${req}><option value="">—</option>${refOptions(f.ref).map(o=>`<option value="${o.id}"${val===o.id?' selected':''}>${esc(o.l)}</option>`).join('')}</select>`;
+  else if(f.t==='multiref'){const sel=Array.isArray(v)?v:[];inp=`<div class="mchk" id="${id}">${refOptions(f.ref).map(o=>`<label><input type="checkbox" value="${o.id}"${sel.includes(o.id)?' checked':''}> ${esc(o.l)}</label>`).join('')||'<span style="color:var(--mut)">Nessun elemento disponibile</span>'}</div>`}
+  else if(f.t==='items')inp=`<div id="${id}" class="items"></div><button type="button" class="btn small ghost" data-additem>+ Aggiungi bene</button>`;
+  else if(f.t==='textarea')inp=`<textarea id="${id}"${req}>${esc(val)}</textarea>`;
+  else inp=`<input id="${id}" type="${f.t==='number'?'number':f.t}"${f.t==='number'?' step="any"':''} value="${esc(val)}"${req}>`;
+  const full=['textarea','items','multiref'].includes(f.t)?' class="full"':'';
+  return`<div${full}><label for="${id}">${esc(f.l)}${f.req?' *':''}</label>${inp}</div>`;
+}
+function addItemRow(box,it){
+  const r=document.createElement('div');r.className='irow';
+  r.innerHTML=`<select class="i-art"><option value="">— bene —</option>${refOptions('articoli').map(o=>`<option value="${o.id}"${it&&it.articolo===o.id?' selected':''}>${esc(o.l)} (disp. ${giacenza(o.id)})</option>`).join('')}</select><input class="i-qta" type="number" min="0" step="any" placeholder="Qtà" value="${it?esc(it.qta):''}"><button type="button" class="btn small ghost">×</button>`;
+  $('button',r).onclick=()=>r.remove();box.appendChild(r);
+}
+function initItems(form,values){
+  $$('.items',form).forEach(box=>{const k=box.id.slice(2);(values&&values[k]||[]).forEach(it=>addItemRow(box,it));const add=box.parentElement.querySelector('[data-additem]');if(add)add.onclick=()=>addItemRow(box)});
+}
+function readForm(fields,form){
+  const o={};
+  for(const f of fields){
+    const el=$('#f_'+f.k,form);if(!el)continue;
+    if(f.t==='check')o[f.k]=el.checked;
+    else if(f.t==='multiref')o[f.k]=$$('input:checked',el).map(i=>i.value);
+    else if(f.t==='items')o[f.k]=$$('.irow',el).map(r=>({articolo:$('.i-art',r).value,qta:+$('.i-qta',r).value||0})).filter(i=>i.articolo&&i.qta>0);
+    else if(f.t==='number')o[f.k]=el.value===''?'':+el.value;
+    else o[f.k]=el.value.trim();
+  }
+  return o;
+}
+function openForm({title,fields,values,onSave,hook,wide}){
+  values=values||{};
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML=`<div class="modal${wide?' wide':''}"><h3>${esc(title)}</h3><form autocomplete="off"><div class="grid">${fields.map(f=>fieldHTML(f,values[f.k])).join('')}</div><div class="err"></div><div class="actions"><button type="button" class="btn ghost" data-c>Annulla</button><button class="btn">Salva</button></div></form></div>`;
+  document.body.appendChild(ov);
+  const form=$('form',ov),err=$('.err',ov);
+  initItems(form,values);if(hook)hook(form,ov);
+  $('[data-c]',ov).onclick=()=>ov.remove();
+  form.onsubmit=async e=>{
+    e.preventDefault();err.textContent='';
+    const obj=readForm(fields,form);
+    const miss=fields.find(f=>f.req&&f.t!=='check'&&(obj[f.k]===''||obj[f.k]===undefined));
+    if(miss){err.textContent=`Compila il campo: ${miss.l}`;return}
+    const r=await onSave(obj);if(r){err.textContent=r}else ov.remove();
+  };
+  const first=$('input,select,textarea',form);if(first&&!values.id)first.focus();
+  return ov;
+}
+function openRecord(coll,id,prefill,after){
+  const sc=S[coll],old=id?DB.get(coll,id):null,fields=visibleFields(sc);
+  openForm({title:(old?'Modifica ':'Nuovo/a ')+sc.sing,fields,values:Object.assign({},old||{},prefill||{}),wide:fields.length>6,
+    hook:sc.hook,
+    onSave:obj=>{
+      const e=sc.before&&sc.before(obj,old);if(e)return e;
+      let rec;if(old){DB.update(coll,id,obj);rec=DB.get(coll,id)}else rec=DB.add(coll,obj);
+      if(sc.after)sc.after(rec,old);if(after)after(rec);refresh();toast('Salvato');
+    }});
+}
+function modal(html,wide){
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML=`<div class="modal${wide?' wide':''}">${html}<div class="actions"><button class="btn ghost" data-c>Chiudi</button></div></div>`;
+  document.body.appendChild(ov);$('[data-c]',ov).onclick=()=>ov.remove();return ov;
+}
+
+/* =====================================================================
+   SCHEDA PERSONA
+   ===================================================================== */
+function openScheda(id){
+  const p=DB.get('persone',id);if(!p)return;
+  const ev=[];
+  DB.all('richieste').filter(x=>x.persona===id).forEach(x=>ev.push([x.data,'Richiesta',`${x.motivo||''} – ${x.stato||''}`]));
+  DB.all('appuntamenti').filter(x=>x.persona===id).forEach(x=>ev.push([x.data,'Appuntamento',`${x.tipo||''} ${x.ora||''} – ${x.stato||''}`]));
+  DB.all('colloqui').filter(x=>x.persona===id).forEach(x=>ev.push([x.data,'Colloquio',`${x.esito||''}${x.prossimo?' – prossimo passo: '+x.prossimo:''}`]));
+  DB.all('distribuzioni').filter(x=>x.persona===id).forEach(x=>ev.push([x.data,'Distribuzione '+(x.tipo||''),x.esito||'']));
+  DB.all('invii').filter(x=>x.persona===id).forEach(x=>ev.push([x.data,'Rete',`${label('enti',x.ente)} – ${x.stato||''}`]));
+  DB.all('comunicazioni').filter(x=>x.persona===id).forEach(x=>ev.push([x.data,'Comunicazione',`${x.tipo||''} (${x.canale||''})`]));
+  ev.sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
+  const idx=OPT.percorso.indexOf(p.percorso);
+  const ov=modal(`<h3>${esc(p.cognome)} ${esc(p.nome)}</h3>
+   <div class="step">${OPT.percorso.map((s,i)=>`<span class="${i<=idx?'on':''}">${s}</span>`).join('')}</div>
+   <p>Pratica: <span class="badge ${tone(p.statoPratica)}">${esc(p.statoPratica||'')}</span> · Nucleo: ${esc(p.nucleo||1)} · Tel: ${esc(p.telefono||'—')}</p>
+   ${p.bisogni?`<p><b>Bisogni:</b> ${esc(p.bisogni)}</p>`:''}${p.talenti?`<p><b>Talenti:</b> ${esc(p.talenti)}</p>`:''}
+   ${(p.note&&['admin','coordinatore','ascolto'].includes(role()))?`<p><b>Note riservate:</b> ${esc(p.note)}</p>`:''}
+   <h3 style="font-size:1em">Cronologia</h3>${ev.length?`<ul class="tl">${ev.map(e=>`<li><b>${fmt(e[0])}</b> · ${esc(e[1])}<br><small>${esc(e[2])}</small></li>`).join('')}</ul>`:'<div class="empty">Nessun evento registrato</div>'}`,true);
+  const sel=document.createElement('div');
+  if(can('persone')){sel.innerHTML=`<label>Aggiorna fase del percorso</label><select>${OPT.percorso.map(o=>`<option${o===p.percorso?' selected':''}>${o}</option>`).join('')}</select>`;
+    $('select',sel).onchange=e=>{DB.update('persone',id,{percorso:e.target.value});toast('Percorso aggiornato');ov.remove();refresh();openScheda(id)};
+    $('.modal',ov).insertBefore(sel,$('.actions',ov))}
+}
+
+/* =====================================================================
+   SEZIONI A TABELLA (CRUD GENERICO)
+   ===================================================================== */
+const state={mod:'dashboard',sec:{},q:{},inv:null};
+function rowsFor(coll){
+  let rows=DB.all(coll);
+  if(state.mod==='miei_turni'&&coll==='turni'){const mine=DB.all('volontari').filter(v=>v.utente===Auth.user.id).map(v=>v.id);rows=rows.filter(t=>mine.includes(t.volontario))}
+  return rows;
+}
+function cell(f,r){
+  const v=r[f.k];
+  switch(f.t){
+    case'ref':return esc(label(f.ref,v));
+    case'date':return esc(fmt(v));
+    case'check':return v?'✔':'';
+    case'multiref':return esc((v||[]).length?`${v.length}: `+v.map(i=>label(f.ref,i)).join(', '):'');
+    case'items':return esc((v||[]).map(i=>`${label('articoli',i.articolo)} ×${i.qta}`).join(', '));
+    case'textarea':return esc(String(v||'').slice(0,90));
+    case'select':return v?`<span class="badge ${tone(v)}">${esc(v)}</span>`:'';
+    default:return esc(v);
+  }
+}
+function renderSection(host,coll,ro){
+  const sc=S[coll],fields=visibleFields(sc).filter(f=>f.list),extra=sc.extra||[];
+  const canDel=!ro&&isStaffAdmin()&&!sc.noDelete;
+  host.innerHTML=`${sc.note?`<div class="banner">${esc(sc.note)}</div>`:''}
+   <div class="toolbar"><input class="search" placeholder="Cerca…" value="${esc(state.q[coll]||'')}">${ro?'':'<button class="btn" data-new>+ Nuovo/a</button>'}${(sc.buttons||[]).map((b,i)=>`<button class="btn gold" data-b="${i}">${esc(b.l)}</button>`).join('')}<span class="sp"></span><button class="btn ghost small noprint" data-csv>Esporta CSV</button></div>
+   <div class="tablewrap"><table><thead><tr>${fields.map(f=>`<th>${esc(f.l.replace(/\s*\(.*\)/,''))}</th>`).join('')}${extra.map(x=>`<th>${esc(x.l)}</th>`).join('')}<th></th></tr></thead><tbody></tbody></table></div>`;
+  const tb=$('tbody',host),inp=$('.search',host);
+  function draw(){
+    const q=(state.q[coll]||'').toLowerCase();
+    let rows=rowsFor(coll).slice();
+    const k=sc.sort;rows.sort((a,b)=>{const c=String(a[k]||'').localeCompare(String(b[k]||''),'it');return sc.asc?c:-c});
+    if(q)rows=rows.filter(r=>fields.map(f=>cell(f,r).replace(/<[^>]*>/g,'')).join(' ').toLowerCase().includes(q));
+    if(!rows.length){tb.innerHTML=`<tr><td colspan="${fields.length+extra.length+1}" class="empty">Nessun elemento</td></tr>`;return}
+    tb.innerHTML=rows.map(r=>`<tr data-id="${r.id}">${fields.map(f=>`<td>${cell(f,r)}</td>`).join('')}${extra.map(x=>`<td>${x.h(r)}</td>`).join('')}<td class="acts">${
+      (sc.actions||[]).filter(a=>!ro||a.ro).filter(a=>!a.show||a.show(r)).map((a,i)=>`<button class="btn small gold" data-a="${sc.actions.indexOf(a)}">${esc(a.l)}</button>`).join('')}${
+      (!ro&&!sc.noEdit&&!(sc.noEditIf&&sc.noEditIf(r)))?'<button class="btn small ghost" data-e>Modifica</button>':''}${
+      (canDel&&!(sc.noDeleteIf&&sc.noDeleteIf(r)))?'<button class="btn small danger" data-d>Elimina</button>':''}</td></tr>`).join('');
+  }
+  draw();
+  inp.oninput=()=>{state.q[coll]=inp.value;draw()};
+  const nb=$('[data-new]',host);if(nb)nb.onclick=()=>openRecord(coll);
+  $$('[data-b]',host).forEach(b=>b.onclick=()=>sc.buttons[+b.dataset.b].fn());
+  $('[data-csv]',host).onclick=()=>exportCSV(coll);
+  tb.onclick=e=>{
+    const t=e.target.closest('button');if(!t)return;const id=t.closest('tr').dataset.id;
+    if(t.dataset.e!==undefined)openRecord(coll,id);
+    else if(t.dataset.d!==undefined){if(confirm('Eliminare definitivamente questo elemento?')){DB.remove(coll,id);refresh()}}
+    else if(t.dataset.a!==undefined)sc.actions[+t.dataset.a].fn(id);
+  };
+}
+function exportCSV(coll){
+  const sc=S[coll],fields=visibleFields(sc);
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[fields.map(f=>q(f.l)).join(';')];
+  for(const r of rowsFor(coll))lines.push(fields.map(f=>{let v=r[f.k];if(f.t==='ref')v=label(f.ref,v);else if(f.t==='multiref')v=(v||[]).map(i=>label(f.ref,i)).join(', ');else if(f.t==='items')v=(v||[]).map(i=>`${label('articoli',i.articolo)} x${i.qta}`).join(', ');else if(f.t==='check')v=v?'Sì':'';return q(v)}).join(';'));
+  download(`caritas_${coll}_${today()}.csv`,'\ufeff'+lines.join('\n'),'text/csv;charset=utf-8');
+  Audit.log('esporta',coll,'','CSV');
+}
+
+/* =====================================================================
+   CRUSCOTTO E REPORT
+   ===================================================================== */
+function bars(items){const mx=Math.max(1,...items.map(i=>i.v));return items.map(i=>`<div class="bar"><span class="n">${esc(i.l)}</span><span class="t"><i style="width:${Math.round(i.v/mx*100)}%"></i></span><span class="c">${i.v}</span></div>`).join('')}
+function kpis(){
+  const t=today(),ym=t.slice(0,7),yr=t.slice(0,4),K=[];
+  const sem=(v,g,y)=>v<=g?'ok':(v<=y?'warn':'bad');
+  const add=(mod,l,v,s,st)=>{if(can(mod))K.push({l,v,s,st:st||''})};
+  const rq=DB.all('richieste').filter(r=>r.stato!=='Chiusa');
+  add('richieste','Richieste aperte',rq.length,'in attesa di esito',sem(rq.length,5,15));
+  const ur=rq.filter(r=>r.priorita==='Urgente').length;add('richieste','Urgenze aperte',ur,'da gestire subito',sem(ur,0,2));
+  const ap=DB.all('appuntamenti').filter(a=>String(a.data).slice(0,7)===ym);
+  const eff=ap.filter(a=>a.stato==='Effettuato').length,prog=ap.filter(a=>a.stato!=='Annullato').length;
+  add('agenda','Appuntamenti del mese',`${eff}/${prog}`,'effettuati / programmati',prog?sem(100-Math.round(eff/prog*100),30,60):'');
+  const mn=ap.filter(a=>a.stato==='Mancata presentazione').length;add('agenda','Mancate presentazioni',mn,'nel mese',sem(mn,2,5));
+  const fu=DB.all('colloqui').filter(c=>c.dataFollowUp&&!c.followUpFatto&&c.dataFollowUp<=t).length;add('colloqui','Follow-up scaduti',fu,'da effettuare',sem(fu,0,3));
+  add('persone','Pratiche attive',DB.all('persone').filter(p=>p.statoPratica!=='Chiusa').length,'persone/nuclei in carico');
+  const al=magAlerts();add('magazzino','Beni sottoscorta',al.sotto.length,'sotto la soglia minima',sem(al.sotto.length,0,3));
+  add('magazzino','Lotti in scadenza (30 gg)',al.scad.length,'verificare giacenza',sem(al.scad.length,0,3));
+  const ds=DB.all('distribuzioni').filter(d=>String(d.data).slice(0,7)===ym);add('distribuzioni','Distribuzioni del mese',`${ds.filter(d=>d.esito==='Consegnata').length}/${ds.length}`,'consegnate / totali');
+  add('volontari','Volontari attivi',DB.all('volontari').filter(v=>v.stato==='Attivo').length,'in servizio');
+  const tu=DB.all('turni').filter(x=>String(x.data).slice(0,7)===ym);const sv=tu.filter(x=>x.stato==='Svolto').length;add('volontari','Turni del mese',`${sv}/${tu.length}`,'svolti / programmati (copertura)');
+  const fz=DB.all('formazione').filter(x=>x.scadenza&&x.scadenza<=addDays(t,60)).length;add('formazione','Formazioni in scadenza',fz,'entro 60 giorni',sem(fz,0,2));
+  const dz=DB.all('donazioni').filter(d=>d.tipo==='Economica'&&String(d.data).startsWith(yr)).reduce((s,d)=>s+(+d.valore||0),0);add('donatori','Donazioni economiche (anno)','€ '+dz.toLocaleString('it-IT'),'progressivo annuale');
+  const az=DB.all('azioni').filter(a=>a.stato!=='Completata');const azs=az.filter(a=>a.scadenza&&a.scadenza<t).length;add('equipe','Azioni Equipe aperte',az.length,`${azs} scadute`,sem(azs,0,2));
+  return K;
+}
+function percorsoBars(){const c=OPT.percorso.map(s=>({l:s,v:DB.all('persone').filter(p=>p.percorso===s).length}));return bars(c)}
+function renderDashboard(host){
+  const K=kpis(),t=today();
+  let html=`<h2>Buongiorno, ${esc(Auth.user.nome||Auth.user.username)}</h2>`;
+  if(role()==='volontario'){host.innerHTML=html+`<div class="panel">Qui trovi i tuoi turni e le informazioni necessarie al servizio. Apri <b>I miei turni</b> dal menu.</div>`;return}
+  html+=`<div class="kpis">${K.map(k=>`<div class="kpi ${k.st}"><div class="l">${esc(k.l)}</div><div class="v">${esc(k.v)}</div><div class="s">${esc(k.s)}</div></div>`).join('')}</div><div class="cols">`;
+  if(can('persone'))html+=`<div class="panel"><h3>Percorso della persona (fase attuale)</h3>${percorsoBars()}</div>`;
+  if(can('colloqui')){const l=DB.all('colloqui').filter(c=>c.dataFollowUp&&!c.followUpFatto&&c.dataFollowUp<=t).sort((a,b)=>a.dataFollowUp.localeCompare(b.dataFollowUp)).slice(0,8);html+=`<div class="panel"><h3>Follow-up da fare</h3>${l.length?`<ul class="tl">${l.map(c=>`<li><b>${fmt(c.dataFollowUp)}</b> · ${esc(label('persone',c.persona))}<br><small>${esc(c.prossimo||c.esito||'')}</small></li>`).join('')}</ul>`:'<div class="empty">Nessun follow-up in sospeso</div>'}</div>`}
+  if(can('richieste')){const l=DB.all('richieste').filter(r=>r.stato!=='Chiusa'&&r.priorita==='Urgente').slice(0,8);html+=`<div class="panel"><h3>Richieste urgenti aperte</h3>${l.length?`<ul class="tl">${l.map(r=>`<li><b>${fmt(r.data)}</b> · ${esc(label('persone',r.persona))}<br><small>${esc(r.motivo||'')}</small></li>`).join('')}</ul>`:'<div class="empty">Nessuna urgenza aperta</div>'}</div>`}
+  if(can('magazzino')){const a=magAlerts();html+=`<div class="panel"><h3>Allerte magazzino</h3>${(a.sotto.length||a.scad.length)?`<ul class="tl">${a.sotto.map(x=>`<li><b>Sottoscorta</b> · ${esc(x.nome)} (${giacenza(x.id)} ${esc(x.unita||'')})</li>`).join('')}${a.scad.map(m=>`<li><b>Scadenza ${fmt(m.scadenza)}</b> · ${esc(label('articoli',m.articolo))}${m.lotto?' lotto '+esc(m.lotto):''}</li>`).join('')}</ul>`:'<div class="empty">Nessuna allerta</div>'}</div>`}
+  if(can('equipe')){const l=DB.all('azioni').filter(a=>a.stato!=='Completata').sort((a,b)=>String(a.scadenza||'9').localeCompare(String(b.scadenza||'9'))).slice(0,8);html+=`<div class="panel"><h3>Azioni Equipe aperte</h3>${l.length?`<ul class="tl">${l.map(a=>`<li><b>${a.scadenza?fmt(a.scadenza):'senza scadenza'}</b> · ${esc(a.decisione)}<br><small>${esc(a.responsabile||'')}</small></li>`).join('')}</ul>`:'<div class="empty">Nessuna azione aperta</div>'}</div>`}
+  host.innerHTML=html+'</div>';
+}
+function renderReport(host){
+  const mesi=[];for(let i=5;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);mesi.push(d.getFullYear()+'-'+pad(d.getMonth()+1))}
+  const apm=mesi.map(m=>({l:m,v:DB.all('appuntamenti').filter(a=>String(a.data).slice(0,7)===m&&a.stato==='Effettuato').length}));
+  const dt=OPT.dontipo.map(x=>({l:x,v:DB.all('donazioni').filter(d=>d.tipo===x).length}));
+  const exp=['persone','richieste','appuntamenti','colloqui','comunicazioni','articoli','movimenti','distribuzioni','volontari','turni','formazione','donatori','donazioni','eventi','enti','invii','riunioni','azioni'];
+  const K=kpis();
+  host.innerHTML=`<h2>Report</h2><div class="banner">I report mostrano dati aggregati. Evita di condividere gli export con dati identificativi quando non necessario.</div>
+   <div class="toolbar noprint"><button class="btn" onclick="window.print()">Stampa / salva PDF</button></div>
+   <div class="kpis">${K.map(k=>`<div class="kpi ${k.st}"><div class="l">${esc(k.l)}</div><div class="v">${esc(k.v)}</div><div class="s">${esc(k.s)}</div></div>`).join('')}</div>
+   <div class="cols"><div class="panel"><h3>Percorso della persona</h3>${percorsoBars()}</div>
+   <div class="panel"><h3>Appuntamenti effettuati (ultimi 6 mesi)</h3>${bars(apm)}</div>
+   <div class="panel"><h3>Donazioni per tipo</h3>${bars(dt)}</div></div>
+   ${isStaffAdmin()?`<div class="panel noprint"><h3>Esporta dati (CSV per Excel)</h3><div class="toolbar">${exp.filter(c=>can(modOf(c))).map(c=>`<button class="btn ghost small" data-x="${c}">${esc(SEC_LABEL[c])}</button>`).join('')}</div></div>`:''}`;
+  $$('[data-x]',host).forEach(b=>b.onclick=()=>exportCSV(b.dataset.x));
+}
+function modOf(c){const m=MODS.find(x=>x.secs&&x.secs.includes(c)&&!x.ro);return m?m.id:''}
+
+/* =====================================================================
+   INVENTARIO SEMESTRALE
+   ===================================================================== */
+function renderInventario(host){
+  if(state.inv)return renderInvDettaglio(host,state.inv);
+  const l=DB.all('inventari').slice().sort((a,b)=>b.data.localeCompare(a.data));
+  host.innerHTML=`<h2>Inventario semestrale</h2><div class="toolbar"><button class="btn" id="bn">+ Nuova sessione di inventario</button></div>
+   <div class="tablewrap"><table><thead><tr><th>Data</th><th>Stato</th><th>Righe</th><th>Differenze</th><th></th></tr></thead><tbody>${l.map(i=>`<tr><td>${fmt(i.data)}</td><td><span class="badge ${i.stato==='Approvato'?'ok':'warn'}">${esc(i.stato)}</span></td><td>${i.righe.length}</td><td>${i.righe.filter(r=>r.conta!==''&&r.conta!==undefined&&+r.conta!==+r.teorica).length}</td><td class="acts"><button class="btn small gold" data-o="${i.id}">Apri</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun inventario</td></tr>'}</tbody></table></div>`;
+  $('#bn',host).onclick=()=>{
+    const arts=DB.all('articoli');if(!arts.length){toast('Prima inserisci i beni nel catalogo del magazzino');return}
+    const inv=DB.add('inventari',{data:today(),stato:'Aperto',righe:arts.map(a=>({articolo:a.id,teorica:giacenza(a.id),conta:'',motivo:''}))});
+    state.inv=inv.id;refresh();
+  };
+  $$('[data-o]',host).forEach(b=>b.onclick=()=>{state.inv=b.dataset.o;refresh()});
+}
+function renderInvDettaglio(host,id){
+  const inv=DB.get('inventari',id);if(!inv){state.inv=null;return renderInventario(host)}
+  const open=inv.stato==='Aperto';
+  host.innerHTML=`<h2>Inventario del ${fmt(inv.data)} <span class="badge ${open?'warn':'ok'}">${esc(inv.stato)}</span></h2>
+   <div class="toolbar noprint"><button class="btn ghost" id="bb">← Elenco</button>${open?'<button class="btn gold" id="bs">Salva bozza</button><button class="btn" id="ba">Approva e applica rettifiche</button>':''}<button class="btn ghost" onclick="window.print()">Stampa</button></div>
+   ${open?'<div class="banner">Inserisci la quantità contata. Dove c\'è differenza la motivazione è obbligatoria. Alla approvazione il confronto avviene con la giacenza di quel momento.</div>':''}
+   <div class="tablewrap"><table><thead><tr><th>Bene</th><th>Ubicazione</th><th>Giacenza teorica</th><th>Contata</th><th>Differenza</th><th>Motivazione</th></tr></thead><tbody>${inv.righe.map((r,i)=>{const a=DB.get('articoli',r.articolo)||{};const th=open?giacenza(r.articolo):r.teorica;const d=r.conta===''||r.conta===undefined?'':Math.round((+r.conta-th)*1000)/1000;return`<tr data-i="${i}"><td>${esc(a.nome||'(eliminato)')} <small>${esc(a.unita||'')}</small></td><td>${esc(a.ubicazione||'')}</td><td>${th}</td><td>${open?`<input type="number" step="any" class="ic" value="${esc(r.conta)}" style="width:100px">`:esc(r.conta)}</td><td class="dd">${d===''?'':(d>0?'+'+d:d)}</td><td>${open?`<input class="im" value="${esc(r.motivo)}">`:esc(r.motivo)}</td></tr>`}).join('')}</tbody></table></div>`;
+  $('#bb',host).onclick=()=>{state.inv=null;refresh()};
+  if(!open)return;
+  const collect=()=>$$('tbody tr',host).map(tr=>({i:+tr.dataset.i,conta:$('.ic',tr).value,motivo:$('.im',tr).value.trim()}));
+  $$('.ic',host).forEach(el=>el.oninput=()=>{const tr=el.closest('tr'),r=inv.righe[+tr.dataset.i],th=giacenza(r.articolo);$('.dd',tr).textContent=el.value===''?'':(()=>{const d=Math.round((+el.value-th)*1000)/1000;return d>0?'+'+d:d})()});
+  const save=()=>{const rows=inv.righe.map(r=>Object.assign({},r));collect().forEach(c=>{rows[c.i].conta=c.conta;rows[c.i].motivo=c.motivo});DB.update('inventari',id,{righe:rows});return rows};
+  $('#bs',host).onclick=()=>{save();toast('Bozza salvata')};
+  $('#ba',host).onclick=()=>{
+    const rows=save();
+    if(rows.some(r=>r.conta===''))return alert('Inserisci la quantità contata per tutti i beni.');
+    const diff=rows.map(r=>({r,th:giacenza(r.articolo)})).map(x=>Object.assign(x,{d:Math.round((+x.r.conta-x.th)*1000)/1000})).filter(x=>x.d!==0);
+    if(diff.some(x=>!x.r.motivo))return alert('Inserisci la motivazione per ogni differenza.');
+    if(!confirm(`Verranno registrate ${diff.length} rettifiche di magazzino. Confermi l'approvazione?`))return;
+    diff.forEach(x=>DB.add('movimenti',{articolo:x.r.articolo,data:today(),tipo:'Rettifica',quantita:x.d,fonte:'Rettifica inventario',note:`Inventario ${fmt(inv.data)}: ${x.r.motivo}`}));
+    rows.forEach(r=>{r.teorica=giacenza(r.articolo)});
+    DB.update('inventari',id,{righe:rows,stato:'Approvato',approvatoDa:Auth.user.username,approvatoIl:new Date().toISOString()});
+    toast('Inventario approvato e rettifiche registrate');refresh();
+  };
+}
+
+/* =====================================================================
+   UTENTI (gestiti solo dall'admin)
+   ===================================================================== */
+const genPw=()=>{const c='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';const a=new Uint32Array(10);(window.crypto||{getRandomValues:x=>x.forEach((_,i)=>x[i]=Math.random()*4e9)}).getRandomValues(a);a.forEach(n=>s+=c[n%c.length]);return s};
+function renderUtenti(host){
+  const l=DB.all('utenti').slice().sort((a,b)=>a.username.localeCompare(b.username));
+  host.innerHTML=`<h2>Utenti e accessi</h2><div class="banner">L'amministratore crea gli utenti assegnando nome utente, ruolo e una <b>password iniziale</b>. Al primo accesso l'utente deve sceglierne una propria.</div>
+   <div class="toolbar"><button class="btn" id="bn">+ Nuovo utente</button></div>
+   <div class="tablewrap"><table><thead><tr><th>Nome utente</th><th>Nome</th><th>Ruolo</th><th>Stato</th><th></th></tr></thead><tbody>${l.map(u=>`<tr data-id="${u.id}"><td><b>${esc(u.username)}</b></td><td>${esc((u.cognome+' '+u.nome).trim())}</td><td>${esc(ROLES[u.ruolo]?ROLES[u.ruolo].l:u.ruolo)}</td><td>${u.attivo?'<span class="badge ok">Attivo</span>':'<span class="badge bad">Disattivato</span>'}${u.mustChange?' <span class="badge warn">Deve cambiare password</span>':''}</td><td class="acts"><button class="btn small ghost" data-e>Modifica</button><button class="btn small gold" data-r>Reimposta password</button></td></tr>`).join('')}</tbody></table></div>`;
+  $('#bn',host).onclick=()=>userForm();
+  $('tbody',host).onclick=e=>{const t=e.target.closest('button');if(!t)return;const id=t.closest('tr').dataset.id;if(t.dataset.e!==undefined)userForm(id);else if(t.dataset.r!==undefined)resetPw(id)};
+}
+function roleOpts(){return Object.keys(ROLES).map(k=>`<option value="${k}">${esc(ROLES[k].l)}</option>`).join('')}
+function userForm(id){
+  const old=id?DB.get('utenti',id):null;
+  const fields=[F('username','Nome utente (minuscole, numeri . _ -)','text',{req:1}),F('nome','Nome','text'),F('cognome','Cognome','text'),F('ruolo','Ruolo / livello di accesso','select',{o:Object.keys(ROLES),req:1})];
+  if(!old)fields.push(F('password','Password iniziale (min. 8 caratteri)','text',{req:1}));else fields.push(F('attivo','Utente attivo','check'));
+  const ov=openForm({title:old?'Modifica utente':'Nuovo utente',fields,values:old?Object.assign({},old):{password:genPw(),ruolo:'volontario'},
+    hook(form){
+      const s=$('#f_ruolo',form);s.innerHTML='<option value="">—</option>'+roleOpts();s.value=old?old.ruolo:'volontario';
+      if(old)$('#f_username',form).disabled=true;
+      if(!old){const g=document.createElement('button');g.type='button';g.className='btn small ghost';g.textContent='Genera password casuale';g.onclick=()=>{$('#f_password',form).value=genPw()};$('#f_password',form).parentElement.appendChild(g)}
+    },
+    async onSave(o){
+      if(old){
+        if(old.id===Auth.user.id&&(!o.attivo||o.ruolo!=='admin'))return'Non puoi disattivarti o toglierti il ruolo di amministratore.';
+        const admins=DB.all('utenti').filter(u=>u.attivo&&u.ruolo==='admin'&&u.id!==old.id).length;
+        if(!admins&&(!o.attivo||o.ruolo!=='admin'))return'Deve restare almeno un amministratore attivo.';
+        DB.update('utenti',old.id,{nome:o.nome,cognome:o.cognome,ruolo:o.ruolo,attivo:o.attivo});
+      }else{
+        const u=o.username.toLowerCase();
+        if(!/^[a-z0-9._-]{3,30}$/.test(u))return'Nome utente non valido (3-30 caratteri: minuscole, numeri, . _ -).';
+        if(DB.all('utenti').some(x=>x.username===u))return'Nome utente già esistente.';
+        if(o.password.length<8)return'La password iniziale deve avere almeno 8 caratteri.';
+        const salt=uid();DB.add('utenti',{username:u,nome:o.nome,cognome:o.cognome,ruolo:o.ruolo,attivo:true,salt,hash:await hashPw(o.password,salt),mustChange:true});
+        alert(`Utente creato.\n\nNome utente: ${u}\nPassword iniziale: ${o.password}\n\nComunicala all'interessato: dovrà cambiarla al primo accesso.`);
+      }
+      refresh();
+    }});
+}
+function resetPw(id){
+  const u=DB.get('utenti',id);const np=prompt(`Nuova password iniziale per "${u.username}" (min. 8 caratteri):`,genPw());
+  if(np===null)return;if(np.length<8){alert('Password troppo corta.');return}
+  const salt=uid();hashPw(np,salt).then(h=>{DB.update('utenti',id,{salt,hash:h,mustChange:true});Audit.log('reset password','utenti',id);alert(`Password reimpostata.\nNome utente: ${u.username}\nPassword iniziale: ${np}`);refresh()});
+}
+
+/* =====================================================================
+   REGISTRO ATTIVITÀ E IMPOSTAZIONI
+   ===================================================================== */
+function renderAudit(host){
+  host.innerHTML=`<h2>Registro delle attività</h2><div class="toolbar"><input class="search" placeholder="Filtra per utente, azione, area…"></div><div class="tablewrap"><table><thead><tr><th>Data e ora</th><th>Utente</th><th>Azione</th><th>Area</th><th>Dettaglio</th></tr></thead><tbody></tbody></table></div>`;
+  const tb=$('tbody',host),inp=$('.search',host);
+  const draw=()=>{const q=inp.value.toLowerCase();const l=DB.all('audit').slice().reverse().filter(a=>!q||(a.utente+a.azione+a.coll+a.dett).toLowerCase().includes(q)).slice(0,300);tb.innerHTML=l.map(a=>`<tr><td>${new Date(a.ts).toLocaleString('it-IT')}</td><td>${esc(a.utente)}</td><td>${esc(a.azione)}</td><td>${esc(a.coll)}</td><td>${esc(a.dett||a.rec)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessuna attività</td></tr>'};
+  draw();inp.oninput=draw;
+}
+function seedDemo(){
+  const p1=DB.add('persone',{cognome:'Rossi',nome:'Mario',dataNascita:'1975-04-12',nucleo:3,statoPratica:'In corso',percorso:'Ascoltare',consenso:true,bisogni:'Aiuto alimentare'});
+  const p2=DB.add('persone',{cognome:'Bianchi',nome:'Lucia',dataNascita:'1988-09-30',nucleo:4,statoPratica:'Aperta',percorso:'Accogliere',consenso:true});
+  DB.add('persone',{cognome:'Verdi',nome:'Anna',dataNascita:'1960-01-05',nucleo:1,statoPratica:'In corso',percorso:'Accompagnare',consenso:true});
+  DB.add('richieste',{persona:p2.id,data:today(),canale:'Di persona',motivo:'Pacco alimentare',priorita:'Urgente',stato:'Aperta'});
+  DB.add('colloqui',{persona:p1.id,data:addDays(today(),-10),esito:'Follow-up',prossimo:'Verifica bolletta',dataFollowUp:addDays(today(),-2)});
+  const a1=DB.add('articoli',{nome:'Pasta',categoria:'Alimentare',unita:'kg',ubicazione:'Scaffale A1',soglia:20});
+  const a2=DB.add('articoli',{nome:'Olio',categoria:'Alimentare',unita:'lt',ubicazione:'Scaffale A2',soglia:10});
+  DB.add('movimenti',{articolo:a1.id,data:today(),tipo:'Entrata',quantita:60,fonte:'Banco Alimentare',scadenza:addDays(today(),20)});
+  DB.add('movimenti',{articolo:a2.id,data:today(),tipo:'Entrata',quantita:8,fonte:'Colletta'});
+  const d1=DB.add('donatori',{nome:'Famiglia Esposito',tipologia:'Privato',ricorrente:true});
+  DB.add('donazioni',{donatore:d1.id,data:today(),tipo:'Economica',valore:50,campagna:'Rete Amici'});
+  DB.add('enti',{nome:'Servizi Sociali del Comune',area:'Sociale',referente:'Dott.ssa Neri'});
+  DB.add('azioni',{decisione:'Definire criteri distribuzione mensile',responsabile:'Coordinatore',scadenza:addDays(today(),14),stato:'Aperta'});
+}
+function renderImpostazioni(host){
+  host.innerHTML=`<h2>Impostazioni e backup</h2>
+   <div class="panel"><h3>Backup</h3><p>Scarica una copia completa dei dati (include anche gli account). Conservala in un posto sicuro.</p><button class="btn" id="bx">Scarica backup (JSON)</button>
+   <hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><p>Ripristina da un backup (sostituisce tutti i dati attuali).</p><input type="file" id="bi" accept=".json,application/json"></div>
+   <div class="panel"><h3>Dati di prova</h3><p>Inserisce alcune persone, beni e record di esempio per provare le funzioni. Da non usare con dati reali.</p><button class="btn gold" id="bd">Carica dati di esempio</button></div>
+   <div class="panel"><h3>Dove sono salvati i dati</h3><p>In questa versione i dati restano nel browser del dispositivo in uso e non sono condivisi con altri utenti. Per l'uso condiviso serve collegare il livello dati a un database online.</p></div>`;
+  $('#bx',host).onclick=()=>{download(`backup_caritas_${today()}.json`,JSON.stringify(DB.data,null,1),'application/json');Audit.log('backup','impostazioni')};
+  $('#bi',host).onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.utenti||!d.utenti.length)throw 0;if(!confirm('Sostituire TUTTI i dati attuali con il backup?'))return;DB.data=d;DB.save();alert('Backup ripristinato. Effettua di nuovo l\'accesso.');Auth.user=null;try{sessionStorage.removeItem('caritas_uid')}catch(x){}boot()}catch(x){alert('File di backup non valido.')}};r.readAsText(f)};
+  $('#bd',host).onclick=()=>{if(confirm('Aggiungere i dati di esempio?')){seedDemo();toast('Dati di esempio caricati')}};
+}
+
+/* =====================================================================
+   INTERFACCIA: LOGIN, CAMBIO PASSWORD, STRUTTURA
+   ===================================================================== */
+const LOGOS=['logo.png','logo.jpg','logo.jpeg','logo.webp','logo.svg','Logo.png','Logo.jpg'];
+function logoFail(img){const i=(+img.dataset.i||0)+1;if(i<LOGOS.length){img.dataset.i=i;img.src=LOGOS[i]}else{const d=document.createElement('div');d.className='textlogo';d.innerHTML='<span class="cross"></span><span>CARITAS<small>SAN GIOVANNI APOSTOLO</small></span>';img.replaceWith(d)}}
+const logoTag=cls=>`<img class="${cls}" alt="Caritas San Giovanni Apostolo" data-i="0" src="${LOGOS[0]}" onerror="logoFail(this)">`;
+
+function showLogin(){
+  $('#app').innerHTML=`<div class="loginwrap"><form class="card" id="lf" autocomplete="off">${logoTag('logo')}<h1>App Caritas</h1><div class="sub">Accedi con il nome utente fornito dall'amministratore</div>
+   <div class="row"><label for="u">Nome utente</label><input id="u" autocapitalize="none" autocomplete="username" required></div>
+   <div class="row"><label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required></div>
+   <div class="err" id="e"></div><button class="btn" style="width:100%">Accedi</button></form></div>`;
+  $('#u').focus();
+  $('#lf').onsubmit=async e=>{e.preventDefault();const r=await Auth.login($('#u').value,$('#p').value);if(r){$('#e').textContent=r;return}boot()};
+}
+function showChangePw(forced){
+  $('#app').innerHTML=`<div class="loginwrap"><form class="card" id="cf" autocomplete="off">${logoTag('logo')}<h1>${forced?'Scegli la tua password':'Cambia password'}</h1><div class="sub">${forced?'È il primo accesso (o la password è stata reimpostata): scegli una password personale.':'Inserisci la password attuale e quella nuova.'}</div>
+   <div class="row"><label>Password attuale</label><input id="p0" type="password" autocomplete="current-password" required></div>
+   <div class="row"><label>Nuova password (min. 8 caratteri)</label><input id="p1" type="password" autocomplete="new-password" required></div>
+   <div class="row"><label>Ripeti nuova password</label><input id="p2" type="password" autocomplete="new-password" required></div>
+   <div class="err" id="e"></div><button class="btn" style="width:100%">Salva password</button>${forced?'':'<button type="button" class="btn ghost" id="cc" style="width:100%;margin-top:8px">Annulla</button>'}</form></div>`;
+  const cc=$('#cc');if(cc)cc.onclick=()=>boot();
+  $('#cf').onsubmit=async e=>{
+    e.preventDefault();const u=Auth.user,err=$('#e');
+    if(await hashPw($('#p0').value,u.salt)!==u.hash){err.textContent='La password attuale non è corretta.';return}
+    const n=$('#p1').value;if(n.length<8){err.textContent='La nuova password deve avere almeno 8 caratteri.';return}
+    if(n!==$('#p2').value){err.textContent='Le due password non coincidono.';return}
+    if(n===$('#p0').value){err.textContent='La nuova password deve essere diversa da quella attuale.';return}
+    const salt=uid();DB.update('utenti',u.id,{salt,hash:await hashPw(n,salt),mustChange:false});Audit.log('cambio password','utenti',u.id);Auth.user=DB.get('utenti',u.id);toast('Password aggiornata');boot();
+  };
+}
+function boot(){
+  Auth.restore();
+  if(!Auth.user)return showLogin();
+  if(Auth.user.mustChange)return showChangePw(true);
+  if(!can(state.mod))state.mod='dashboard';
+  const r=Auth.user.ruolo;
+  $('#app').innerHTML=`<header class="top"><button id="burger" aria-label="Menu">☰</button>${logoTag('hlogo')}<div class="tl">App Caritas<small>San Giovanni Apostolo</small></div><div class="sp"></div><div class="who"><b>${esc((Auth.user.nome+' '+Auth.user.cognome).trim()||Auth.user.username)}</b><span><br>${esc(ROLES[r].l)}</span></div><button class="btn small" id="bpw">Password</button><button class="btn small" id="bout">Esci</button></header>
+   <div class="layout"><nav class="side" id="nav"></nav><main id="main"></main></div>`;
+  $('#burger').onclick=()=>$('#nav').classList.toggle('open');
+  $('#bout').onclick=()=>{Auth.logout();showLogin()};
+  $('#bpw').onclick=()=>showChangePw(false);
+  const nav=$('#nav');
+  nav.innerHTML=MODS.filter(m=>can(m.id)).map(m=>`<a data-m="${m.id}">${esc(m.l)}</a>`).join('');
+  nav.onclick=e=>{const a=e.target.closest('a');if(!a)return;state.mod=a.dataset.m;state.inv=null;nav.classList.remove('open');refresh()};
+  refresh();
+}
+function refresh(){
+  const main=$('#main');if(!main||!Auth.user)return;
+  if(!can(state.mod))state.mod='dashboard';
+  $$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.m===state.mod));
+  const m=MODS.find(x=>x.id===state.mod);const sy=main.scrollTop;
+  if(m.id==='dashboard')return renderDashboard(main);
+  if(m.id==='report')return renderReport(main);
+  if(m.id==='inventario')return renderInventario(main);
+  if(m.id==='utenti')return renderUtenti(main);
+  if(m.id==='audit')return renderAudit(main);
+  if(m.id==='impostazioni')return renderImpostazioni(main);
+  const secs=m.secs;const cur=secs.includes(state.sec[m.id])?state.sec[m.id]:secs[0];
+  main.innerHTML=`<h2>${esc(m.l)}</h2><div id="alerts"></div>${secs.length>1?`<div class="tabs">${secs.map(s=>`<button data-s="${s}" class="${s===cur?'on':''}">${esc(SEC_LABEL[s])}</button>`).join('')}</div>`:''}<div id="sec"></div>`;
+  if(m.id==='magazzino'){const a=magAlerts();if(a.sotto.length||a.scad.length)$('#alerts',main).innerHTML=`<div class="banner">⚠ ${a.sotto.length?a.sotto.length+' bene/i sottoscorta. ':''}${a.scad.length?a.scad.length+' lotto/i in scadenza entro 30 giorni (o già scaduti).':''}</div>`}
+  $$('.tabs button',main).forEach(b=>b.onclick=()=>{state.sec[m.id]=b.dataset.s;refresh()});
+  renderSection($('#sec',main),cur,!!m.ro);
+}
+window.addEventListener('DOMContentLoaded',async()=>{DB.load();await Auth.seed();boot()});
+</script>
+</body>
+</html>
